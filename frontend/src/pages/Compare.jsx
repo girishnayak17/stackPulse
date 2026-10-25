@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { GitCompare, ExternalLink, AlertCircle, Save } from 'lucide-react';
+import { GitCompare, ExternalLink, AlertCircle, Save, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Compare() {
     const location = useLocation();
-    const [dev1, setDev1] = useState('');
-    const [dev2, setDev2] = useState('');
+    const [usernames, setUsernames] = useState(['', '']);
     const [comparisonName, setComparisonName] = useState('');
-    const [data1, setData1] = useState(null);
-    const [data2, setData2] = useState(null);
+    const [developersData, setDevelopersData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
@@ -18,27 +16,28 @@ export default function Compare() {
 
     useEffect(() => {
         if (location.state?.usernames && location.state.usernames.length >= 2) {
-            setDev1(location.state.usernames[0] || '');
-            setDev2(location.state.usernames[1] || '');
-            executeComparison(location.state.usernames[0], location.state.usernames[1]);
+            setUsernames(location.state.usernames);
+            executeComparison(location.state.usernames);
         }
     }, [location.state]);
 
-    const executeComparison = async (username1, username2) => {
+    const executeComparison = async (listToCompare) => {
+        const validNames = listToCompare.map(n => n.trim()).filter(Boolean);
+        if (validNames.length < 2) {
+            setError('Please enter at least two valid GitHub usernames to compare.');
+            return;
+        }
+
         setLoading(true);
         setError('');
-        setData1(null);
-        setData2(null);
+        setDevelopersData([]);
 
         try {
-            const [res1, res2] = await Promise.all([
-                axios.get(`http://localhost:5000/api/github/profile/${username1.trim()}`),
-                axios.get(`http://localhost:5000/api/github/profile/${username2.trim()}`)
-            ]);
-            setData1(res1.data.developer);
-            setData2(res2.data.developer);
+            const requests = validNames.map(name => axios.get(`http://localhost:5000/api/github/profile/${name}`));
+            const responses = await Promise.all(requests);
+            setDevelopersData(responses.map(res => res.data.developer));
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to fetch developer profiles');
+            setError(err.response?.data?.error || 'Failed to fetch one or more developer profiles');
         } finally {
             setLoading(false);
         }
@@ -46,11 +45,26 @@ export default function Compare() {
 
     const handleCompareSubmit = (e) => {
         e.preventDefault();
-        if (!dev1.trim() || !dev2.trim()) {
-            setError('Please enter two GitHub usernames to compare.');
-            return;
+        executeComparison(usernames);
+    };
+
+    const handleAddUsernameField = () => {
+        if (usernames.length < 4) {
+            setUsernames([...usernames, '']);
         }
-        executeComparison(dev1, dev2);
+    };
+
+    const handleRemoveUsernameField = (index) => {
+        if (usernames.length > 2) {
+            const updated = usernames.filter((_, i) => i !== index);
+            setUsernames(updated);
+        }
+    };
+
+    const handleUsernameChange = (index, value) => {
+        const updated = [...usernames];
+        updated[index] = value;
+        setUsernames(updated);
     };
 
     const handleSaveComparison = async () => {
@@ -64,9 +78,10 @@ export default function Compare() {
         }
 
         try {
+            const validNames = developersData.map(d => d.username);
             await axios.post(
                 'http://localhost:5000/api/curation/comparisons',
-                { name: comparisonName, usernames: [data1.username, data2.username] },
+                { name: comparisonName, usernames: validNames },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             setSuccessMessage('Comparison saved successfully!');
@@ -75,33 +90,28 @@ export default function Compare() {
         }
     };
 
-    // Helper to render proportional comparative bars
-    const renderBarGroup = (label, val1, val2) => {
-        const maxVal = Math.max(val1, val2, 1);
-        const height1 = Math.max(Math.round((val1 / maxVal) * 100), 12);
-        const height2 = Math.max(Math.round((val2 / maxVal) * 100), 12);
+    const renderBarGroup = (label, metricKey) => {
+        const values = developersData.map(dev => dev[metricKey] || 0);
+        const maxVal = Math.max(...values, 1);
+        const colors = ['bg-blue-500', 'bg-amber-400', 'bg-emerald-500', 'bg-purple-500'];
 
         return (
             <div className="flex flex-col items-center h-full justify-end gap-3">
                 <div className="flex items-end justify-center gap-2 sm:gap-4 w-full h-48 sm:h-56 pb-2 px-1 border-b border-gray-200 dark:border-gray-800">
-                    {/* Bar for Developer 1 */}
-                    <div className="flex flex-col items-center gap-1.5 h-full justify-end w-1/2 max-w-[60px]">
-                        <span className="text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300">{val1}</span>
-                        <div 
-                            style={{ height: `${height1}%` }} 
-                            className="w-full bg-blue-500 rounded-t-lg transition-all duration-500 hover:bg-blue-600 shadow-sm"
-                            title={`@${data1.username}: ${val1}`}
-                        ></div>
-                    </div>
-                    {/* Bar for Developer 2 */}
-                    <div className="flex flex-col items-center gap-1.5 h-full justify-end w-1/2 max-w-[60px]">
-                        <span className="text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300">{val2}</span>
-                        <div 
-                            style={{ height: `${height2}%` }} 
-                            className="w-full bg-amber-400 rounded-t-lg transition-all duration-500 hover:bg-amber-500 shadow-sm"
-                            title={`@${data2.username}: ${val2}`}
-                        ></div>
-                    </div>
+                    {developersData.map((dev, idx) => {
+                        const val = dev[metricKey] || 0;
+                        const heightPct = Math.max(Math.round((val / maxVal) * 100), 12);
+                        return (
+                            <div key={idx} className="flex flex-col items-center gap-1.5 h-full justify-end w-1/4 max-w-[50px]">
+                                <span className="text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300">{val}</span>
+                                <div 
+                                    style={{ height: `${heightPct}%` }} 
+                                    className={`w-full ${colors[idx % colors.length]} rounded-t-lg transition-all duration-500 shadow-sm`}
+                                    title={`@${dev.username}: ${val}`}
+                                ></div>
+                            </div>
+                        );
+                    })}
                 </div>
                 <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 text-center">{label}</span>
             </div>
@@ -109,35 +119,54 @@ export default function Compare() {
     };
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8 px-2 sm:px-0">
+        <div className="max-w-6xl mx-auto space-y-8 px-2 sm:px-0">
             <div className="text-center py-6 space-y-3">
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white flex items-center justify-center gap-2">
                     <GitCompare className="w-7 h-7 sm:w-8 sm:h-8 text-purple-600 shrink-0" /> Side-by-Side Comparison
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm px-2">
-                    Benchmark metrics, followers, stars, and code ecosystems between two developers.
+                    Benchmark metrics, followers, stars, and code ecosystems across multiple developers.
                 </p>
 
-                <form onSubmit={handleCompareSubmit} className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 px-2 sm:px-0">
-                    <input 
-                        type="text"
-                        value={dev1}
-                        onChange={(e) => setDev1(e.target.value)}
-                        placeholder="First username (e.g., torvalds)"
-                        className="px-4 py-3 bg-white dark:bg-[#1f2028] border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none dark:text-white text-sm"
-                    />
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <input 
-                            type="text"
-                            value={dev2}
-                            onChange={(e) => setDev2(e.target.value)}
-                            placeholder="Second username (e.g., gaearon)"
-                            className="w-full sm:flex-1 px-4 py-3 bg-white dark:bg-[#1f2028] border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none dark:text-white text-sm"
-                        />
+                <form onSubmit={handleCompareSubmit} className="max-w-4xl mx-auto mt-6 px-2 sm:px-0">
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-3">
+                        {usernames.map((name, idx) => (
+                            <div key={idx} className="relative w-full md:w-64 flex items-center">
+                                <input 
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => handleUsernameChange(idx, e.target.value)}
+                                    placeholder={`Username ${idx + 1} (e.g. torvalds)`}
+                                    className="w-full h-12 px-4 bg-white dark:bg-[#1f2028] border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none dark:text-white text-sm"
+                                    required={idx < 2}
+                                />
+                                {usernames.length > 2 && (
+                                    <button 
+                                        type="button" 
+                                        onClick={() => handleRemoveUsernameField(idx)}
+                                        className="absolute right-3 text-gray-400 hover:text-red-500"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+
+                        {usernames.length < 4 && (
+                            <button
+                                type="button"
+                                onClick={handleAddUsernameField}
+                                className="h-12 px-4 border border-dashed border-gray-400 dark:border-gray-600 hover:border-purple-500 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium flex items-center gap-1.5 transition shrink-0"
+                                title="Add another user"
+                            >
+                                <Plus className="w-4 h-4" /> Add
+                            </button>
+                        )}
+
                         <button 
                             type="submit"
                             disabled={loading}
-                            className="w-full sm:w-auto px-5 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl shadow-md transition shrink-0"
+                            className="h-12 px-8 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl shadow-md transition shrink-0 flex items-center justify-center text-sm"
                         >
                             {loading ? 'Comparing...' : 'Compare'}
                         </button>
@@ -152,32 +181,31 @@ export default function Compare() {
                 </div>
             )}
 
-            {data1 && data2 && (
+            {developersData.length > 0 && (
                 <div className="space-y-6 px-2 sm:px-0">
+                    {/* Reverted Saving Toolbar without the odd background wrapping block */}
                     {token && (
-                        <div className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
-                            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto flex-1">
-                                <input 
-                                    type="text"
-                                    value={comparisonName}
-                                    onChange={(e) => setComparisonName(e.target.value)}
-                                    placeholder="Name this comparison group..."
-                                    className="w-full sm:w-80 px-4 py-2 bg-gray-50 dark:bg-[#16171d] border border-gray-300 dark:border-gray-700 rounded-lg text-sm dark:text-white"
-                                />
-                                <button 
-                                    onClick={handleSaveComparison}
-                                    className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-sm transition flex items-center justify-center gap-1.5 shrink-0"
-                                >
-                                    <Save className="w-4 h-4" /> Save
-                                </button>
-                            </div>
-                            {successMessage && <span className="text-xs text-emerald-600 font-medium text-center">{successMessage}</span>}
+                        <div className="max-w-xl mx-auto flex items-center gap-3 py-2">
+                            <input 
+                                type="text"
+                                value={comparisonName}
+                                onChange={(e) => setComparisonName(e.target.value)}
+                                placeholder="Name this comparison group..."
+                                className="flex-1 h-11 px-4 bg-white dark:bg-[#1f2028] border border-gray-300 dark:border-gray-700 rounded-xl text-sm dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
+                            />
+                            <button 
+                                onClick={handleSaveComparison}
+                                className="h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm transition flex items-center gap-1.5 shrink-0 shadow-sm"
+                            >
+                                <Save className="w-4 h-4" /> Save
+                            </button>
+                            {successMessage && <span className="text-xs text-emerald-600 font-medium ml-2">{successMessage}</span>}
                         </div>
                     )}
 
-                    {/* 1. Side-by-Side Detailed Cards First */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {[data1, data2].map((dev, idx) => (
+                    {/* 1. Side-by-Side Detailed Cards */}
+                    <div className={`grid grid-cols-1 md:grid-cols-${Math.min(developersData.length, 3)} gap-6`}>
+                        {developersData.map((dev, idx) => (
                             <div key={idx} className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-5 sm:p-6 space-y-6">
                                 <div className="flex items-center gap-4">
                                     <img src={dev.avatar_url} alt={dev.username} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-purple-500/20 shrink-0" />
@@ -214,31 +242,30 @@ export default function Compare() {
                         ))}
                     </div>
 
-                    {/* 2. Bar Chart Visualization Section Underneath */}
+                    {/* 2. Bar Chart Visualization Section */}
                     <div className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-5 sm:p-8 space-y-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
                                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Side-by-Side Profile Metrics Comparison</h3>
                                 <p className="text-xs text-gray-500 mt-0.5">Visualizing performance across key GitHub metrics</p>
                             </div>
-                            {/* Dynamic Legend with Actual Usernames */}
-                            <div className="flex items-center gap-6 text-xs sm:text-sm">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-3.5 h-3.5 rounded-md bg-blue-500 inline-block"></span>
-                                    <span className="font-bold text-gray-800 dark:text-gray-200">@{data1.username}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="w-3.5 h-3.5 rounded-md bg-amber-400 inline-block"></span>
-                                    <span className="font-bold text-gray-800 dark:text-gray-200">@{data2.username}</span>
-                                </div>
+                            <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm">
+                                {developersData.map((dev, idx) => {
+                                    const dotColors = ['bg-blue-500', 'bg-amber-400', 'bg-emerald-500', 'bg-purple-500'];
+                                    return (
+                                        <div key={idx} className="flex items-center gap-2">
+                                            <span className={`w-3.5 h-3.5 rounded-md ${dotColors[idx % dotColors.length]} inline-block`}></span>
+                                            <span className="font-bold text-gray-800 dark:text-gray-200">@{dev.username}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        {/* Chart Grid Columns */}
                         <div className="grid grid-cols-3 gap-3 sm:gap-6 pt-4">
-                            {renderBarGroup("Total Stars", data1.total_stars, data2.total_stars)}
-                            {renderBarGroup("Repositories", data1.public_repos, data2.public_repos)}
-                            {renderBarGroup("Followers", data1.followers, data2.followers)}
+                            {renderBarGroup("Total Stars", "total_stars")}
+                            {renderBarGroup("Repositories", "public_repos")}
+                            {renderBarGroup("Followers", "followers")}
                         </div>
                     </div>
                 </div>
