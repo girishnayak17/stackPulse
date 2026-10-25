@@ -75,6 +75,39 @@ export default function Compare() {
         }
     };
 
+    // Helper to render proportional comparative bars
+    const renderBarGroup = (label, val1, val2) => {
+        const maxVal = Math.max(val1, val2, 1);
+        const height1 = Math.max(Math.round((val1 / maxVal) * 100), 12);
+        const height2 = Math.max(Math.round((val2 / maxVal) * 100), 12);
+
+        return (
+            <div className="flex flex-col items-center h-full justify-end gap-3">
+                <div className="flex items-end justify-center gap-2 sm:gap-4 w-full h-48 sm:h-56 pb-2 px-1 border-b border-gray-200 dark:border-gray-800">
+                    {/* Bar for Developer 1 */}
+                    <div className="flex flex-col items-center gap-1.5 h-full justify-end w-1/2 max-w-[60px]">
+                        <span className="text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300">{val1}</span>
+                        <div 
+                            style={{ height: `${height1}%` }} 
+                            className="w-full bg-blue-500 rounded-t-lg transition-all duration-500 hover:bg-blue-600 shadow-sm"
+                            title={`@${data1.username}: ${val1}`}
+                        ></div>
+                    </div>
+                    {/* Bar for Developer 2 */}
+                    <div className="flex flex-col items-center gap-1.5 h-full justify-end w-1/2 max-w-[60px]">
+                        <span className="text-[10px] sm:text-xs font-bold text-gray-700 dark:text-gray-300">{val2}</span>
+                        <div 
+                            style={{ height: `${height2}%` }} 
+                            className="w-full bg-amber-400 rounded-t-lg transition-all duration-500 hover:bg-amber-500 shadow-sm"
+                            title={`@${data2.username}: ${val2}`}
+                        ></div>
+                    </div>
+                </div>
+                <span className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 text-center">{label}</span>
+            </div>
+        );
+    };
+
     return (
         <div className="max-w-5xl mx-auto space-y-8 px-2 sm:px-0">
             <div className="text-center py-6 space-y-3">
@@ -85,7 +118,6 @@ export default function Compare() {
                     Benchmark metrics, followers, stars, and code ecosystems between two developers.
                 </p>
 
-                {/* Stacks inputs on mobile, side-by-side on sm+ */}
                 <form onSubmit={handleCompareSubmit} className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 px-2 sm:px-0">
                     <input 
                         type="text"
@@ -143,6 +175,7 @@ export default function Compare() {
                         </div>
                     )}
 
+                    {/* 1. Side-by-Side Detailed Cards First */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {[data1, data2].map((dev, idx) => (
                             <div key={idx} className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-5 sm:p-6 space-y-6">
@@ -179,6 +212,34 @@ export default function Compare() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    {/* 2. Bar Chart Visualization Section Underneath */}
+                    <div className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-5 sm:p-8 space-y-6">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Side-by-Side Profile Metrics Comparison</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Visualizing performance across key GitHub metrics</p>
+                            </div>
+                            {/* Dynamic Legend with Actual Usernames */}
+                            <div className="flex items-center gap-6 text-xs sm:text-sm">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3.5 h-3.5 rounded-md bg-blue-500 inline-block"></span>
+                                    <span className="font-bold text-gray-800 dark:text-gray-200">@{data1.username}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3.5 h-3.5 rounded-md bg-amber-400 inline-block"></span>
+                                    <span className="font-bold text-gray-800 dark:text-gray-200">@{data2.username}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Chart Grid Columns */}
+                        <div className="grid grid-cols-3 gap-3 sm:gap-6 pt-4">
+                            {renderBarGroup("Total Stars", data1.total_stars, data2.total_stars)}
+                            {renderBarGroup("Repositories", data1.public_repos, data2.public_repos)}
+                            {renderBarGroup("Followers", data1.followers, data2.followers)}
+                        </div>
                     </div>
                 </div>
             )}
