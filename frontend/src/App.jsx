@@ -5,6 +5,8 @@ import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Search from './pages/Search';
+import Compare from './pages/Compare';
+import SavedPins from './pages/SavedPins';
 
 export default function App() {
     return (
@@ -15,8 +17,8 @@ export default function App() {
                     <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
                         <Routes>
                             <Route path="/" element={<Search />} />
-                            <Route path="/compare" element={<div className="text-center py-20"><h1 className="text-3xl font-bold">Developer Comparison Page</h1><p className="text-gray-500 mt-2">Coming up next!</p></div>} />
-                            <Route path="/saved" element={<div className="text-center py-20"><h1 className="text-3xl font-bold">Saved & Pinned Repositories</h1><p className="text-gray-500 mt-2">Coming up next!</p></div>} />
+                            <Route path="/compare" element={<Compare />} />
+                            <Route path="/saved" element={<SavedPins />} />
                             <Route path="/login" element={<Login />} />
                             <Route path="/signup" element={<Signup />} />
                         </Routes>
