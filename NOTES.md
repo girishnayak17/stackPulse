@@ -27,3 +27,14 @@ The PostgreSQL schema is structured around normalized relational tables:
 ## 5. Session Persistence & User Experience (UX)
 * **The Fix**: Solved the standard Single Page Application (SPA) refresh bug where page reloads wipe out React state and force logouts. By synchronizing React's `AuthContext` state with browser `localStorage`, user sessions and tokens persist seamlessly across reloads.
 * **Mobile Responsiveness**: Designed with a mobile-first approach featuring a slide-out hamburger navigation drawer, stacking search inputs, and fluid responsive grid layouts for profiles and comparisons.
+
+
+# 💡 Developer Notes & Journey: Building StackPulse
+
+| Layer / Topic | Chosen Approach | Rationale & Justification |
+| :--- | :--- | :--- |
+| **Backend Architecture** | Node.js + Express (Raw SQL / `pg`) | Avoiding heavy ORMs (like Prisma or Sequelize) gave me absolute control over complex multi-table relational joins—such as aggregating arrays of developer usernames for saved comparisons—while keeping the backend lean, fast, and transparent. |
+| **Frontend Visualizations** | Custom Tailwind CSS Bar Charts | Bypassed heavy charting libraries (like Chart.js or Recharts) by building percentage-scaled comparative bar charts using Tailwind CSS flexbox. This keeps the bundle size tiny, avoids third-party styling conflicts, and ensures flawless dark mode support. |
+| **Session Persistence** | `AuthContext` + `LocalStorage` | Solved the standard SPA refresh bug where a page reload resets React state. Synchronizing the auth state with browser `localStorage` ensures user sessions and tokens persist seamlessly across reloads. |
+| **Database Integrity** | Explicit Foreign Key Cascading | Handled relational constraints cleanly in backend controllers by explicitly deleting child rows in `comparison_devs` before removing parent comparison records, preventing unhandled server crashes and database errors. |
+| **GitHub API Rate Limits** | Optional Personal Access Token (PAT) | Mitigated the public GitHub API's restrictive 60 requests/hour unauthenticated IP limit by adding backend support for an authenticated `GITHUB_TOKEN`, allowing users to scale up to 5,000 requests/hour instantly. |
