@@ -36,7 +36,7 @@ export default function SavedPins() {
     };
 
     const handleDeleteComparison = async (id, e) => {
-        e.stopPropagation(); // Prevent card click event
+        e.stopPropagation();
         if (!window.confirm('Are you sure you want to delete this comparison?')) return;
 
         try {
@@ -73,8 +73,8 @@ export default function SavedPins() {
 
     if (!token) {
         return (
-            <div className="text-center py-20">
-                <h2 className="text-2xl font-bold">Please log in to view your saved pins and comparisons.</h2>
+            <div className="text-center py-20 px-4">
+                <h2 className="text-xl sm:text-2xl font-bold">Please log in to view your saved pins and comparisons.</h2>
             </div>
         );
     }
@@ -84,15 +84,15 @@ export default function SavedPins() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto space-y-10">
+        <div className="max-w-6xl mx-auto space-y-10 px-2 sm:px-0">
             <div className="text-center py-4">
-                <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Your Saved Curation Data</h1>
-                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage your pinned repositories and saved developer comparison groups.</p>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">Your Saved Curation Data</h1>
+                <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm mt-1 px-2">Manage your pinned repositories and saved developer comparison groups.</p>
             </div>
 
             {/* Saved Comparisons Section */}
             <div className="space-y-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <GitCompare className="w-5 h-5 text-purple-600" /> Saved Comparisons ({comparisons.length})
                 </h2>
                 {comparisons.length === 0 ? (
@@ -103,20 +103,20 @@ export default function SavedPins() {
                             <div 
                                 key={comp.id} 
                                 onClick={() => handleOpenComparison(comp.usernames)}
-                                className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm hover:border-purple-500 cursor-pointer transition flex flex-col justify-between space-y-4"
+                                className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm hover:border-purple-500 cursor-pointer transition flex flex-col justify-between space-y-4"
                             >
                                 <div>
-                                    <div className="flex justify-between items-start">
-                                        <h3 className="font-bold text-gray-900 dark:text-white">{comp.name}</h3>
+                                    <div className="flex justify-between items-start gap-2">
+                                        <h3 className="font-bold text-gray-900 dark:text-white text-base truncate">{comp.name}</h3>
                                         <button 
                                             onClick={(e) => handleDeleteComparison(comp.id, e)}
-                                            className="text-gray-400 hover:text-red-600 p-1 transition"
+                                            className="text-gray-400 hover:text-red-600 p-1.5 transition shrink-0"
                                             title="Delete comparison"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <div className="flex gap-2 mt-2">
+                                    <div className="flex flex-wrap gap-1.5 mt-2">
                                         {comp.usernames?.map((u, i) => (
                                             <span key={i} className="text-xs px-2 py-1 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 rounded-md">
                                                 @{u}
@@ -136,7 +136,7 @@ export default function SavedPins() {
 
             {/* Pinned Repositories Section */}
             <div className="space-y-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <Bookmark className="w-5 h-5 text-purple-600" /> Pinned Repositories ({pins.length})
                 </h2>
                 {pins.length === 0 ? (
@@ -147,34 +147,34 @@ export default function SavedPins() {
                             <div 
                                 key={pin.id} 
                                 onClick={() => handleOpenRepo(pin.github_username, pin.repo_name)}
-                                className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm hover:border-purple-500 cursor-pointer transition flex flex-col justify-between space-y-4"
+                                className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-xl p-4 sm:p-5 shadow-sm hover:border-purple-500 cursor-pointer transition flex flex-col justify-between space-y-4"
                             >
                                 <div>
-                                    <div className="flex justify-between items-start">
-                                        <span className="text-xs font-semibold px-2.5 py-1 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 rounded-md">
+                                    <div className="flex justify-between items-start gap-2">
+                                        <span className="text-xs font-semibold px-2.5 py-1 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 rounded-md truncate max-w-[150px]">
                                             @{pin.github_username}
                                         </span>
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-3 shrink-0">
                                             <span className="flex items-center gap-1 text-xs text-amber-500">
                                                 <Star className="w-4 h-4 fill-amber-500" /> {pin.stars}
                                             </span>
                                             <button 
                                                 onClick={(e) => handleDeletePin(pin.repo_id, e)}
-                                                className="text-gray-400 hover:text-red-600 p-1 transition"
+                                                className="text-gray-400 hover:text-red-600 p-1.5 transition"
                                                 title="Remove pin"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
                                     </div>
-                                    <h4 className="font-bold text-gray-900 dark:text-white mt-2 flex items-center gap-1.5 hover:text-purple-600 transition">
-                                        {pin.repo_name} <ExternalLink className="w-4 h-4" />
+                                    <h4 className="font-bold text-gray-900 dark:text-white mt-2 flex items-center gap-1.5 hover:text-purple-600 transition break-all text-sm sm:text-base">
+                                        {pin.repo_name} <ExternalLink className="w-4 h-4 shrink-0" />
                                     </h4>
-                                    <p className="text-xs text-gray-500 mt-1 italic">Note: "{pin.note}"</p>
+                                    <p className="text-xs text-gray-500 mt-1 italic break-words">Note: "{pin.note}"</p>
                                 </div>
-                                <div className="text-xs text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                                <div className="text-xs text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
                                     <span>Primary Language: <span className="font-medium text-gray-700 dark:text-gray-300">{pin.primary_language || 'N/A'}</span></span>
-                                    <span className="text-purple-600 dark:text-purple-400 font-medium">View on GitHub &rarr;</span>
+                                    <span className="text-purple-600 dark:text-purple-400 font-medium self-end sm:self-auto">View on GitHub &rarr;</span>
                                 </div>
                             </div>
                         ))}
