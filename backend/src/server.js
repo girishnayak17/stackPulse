@@ -4,6 +4,7 @@ require('dotenv').config();
 const pool = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const githubRoutes = require('./routes/githubRoutes');
+const curationRoutes = require('./routes/curationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -15,6 +16,7 @@ app.use(express.json());
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/github', githubRoutes);
+app.use('/api/curation', curationRoutes);
 
 // Test Route
 app.get('/api/health', async (req, res) => {
