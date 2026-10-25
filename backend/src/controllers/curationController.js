@@ -62,6 +62,7 @@ const getSavedComparisons = async (req, res) => {
 };
 
 // Delete a saved comparison
+// Delete a saved comparison
 const deleteComparison = async (req, res) => {
     const userId = req.user.id;
     const { id } = req.params;
@@ -72,7 +73,12 @@ const deleteComparison = async (req, res) => {
             return res.status(404).json({ error: 'Comparison not found' });
         }
 
+        // 1. Delete associated child rows in comparison_devs first to avoid foreign key violations
+        await pool.query('DELETE FROM comparison_devs WHERE comparison_id = $1', [id]);
+
+        // 2. Now delete the main comparison record
         await pool.query('DELETE FROM comparisons WHERE id = $1', [id]);
+
         res.json({ message: 'Comparison deleted successfully' });
     } catch (err) {
         console.error('Delete comparison error:', err.message);
@@ -131,12 +137,32 @@ const getUserPins = async (req, res) => {
 };
 
 // Delete a pinned repository
+// Delete a pinned repository
 const deletePin = async (req, res) => {
     const userId = req.user.id;
-    const { repo_id } = req.params;
+    const repoId = parseInt(req.params.repo_id, 10); // Ensure repo_id is parsed as an integer
+
+    if (isNaN(repoId)) {
+        return res.status(400).json({ error: 'Invalid repository ID' });
+    }
 
     try {
-        await pool.query('DELETE FROM pins WHERE user_id = $1 AND repo_id = $2', [userId, repo_id]);
+        // Check if the pin exists for this user
+        const pinCheck = await pool.query(
+            'SELECT * FROM pins WHERE user_id = $1 AND repo_id = $2', 
+            [userId, repoId]
+        );
+        
+        if (pinCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Pin not found' });
+        }
+
+        // Delete the pin
+        await pool.query(
+            'DELETE FROM pins WHERE user_id = $1 AND repo_id = $2', 
+            [userId, repoId]
+        );
+
         res.json({ message: 'Pin removed successfully' });
     } catch (err) {
         console.error('Delete pin error:', err.message);

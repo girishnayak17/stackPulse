@@ -4,14 +4,20 @@ const verifyToken = require('../middleware/authMiddleware');
 const { 
     saveComparison, 
     getSavedComparisons, 
+    deleteComparison, 
     pinRepository, 
-    getUserPins 
+    getUserPins, 
+    deletePin 
 } = require('../controllers/curationController');
 
-// All curation routes require a logged-in user session (JWT)
+// Comparison Routes
 router.post('/comparisons', verifyToken, saveComparison);
 router.get('/comparisons', verifyToken, getSavedComparisons);
+router.delete('/comparisons/:id', verifyToken, deleteComparison);
+
+// Pinned Repository Routes
 router.post('/pins', verifyToken, pinRepository);
 router.get('/pins', verifyToken, getUserPins);
+router.delete('/pins/:repo_id', verifyToken, deletePin);
 
 module.exports = router;
