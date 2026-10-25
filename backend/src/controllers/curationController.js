@@ -2,24 +2,21 @@ const pool = require('../config/db');
 
 // Save a new developer comparison
 const saveComparison = async (req, res) => {
-    const userId = req.user.id; // Comes from auth middleware
-    const { name, usernames } = req.body; // e.g., name: "Top JS Devs", usernames: ["torvalds", "gaearon"]
+    const userId = req.user.id;
+    const { name, usernames } = req.body;
 
     if (!name || !usernames || usernames.length === 0) {
         return res.status(400).json({ error: 'Comparison name and developer usernames are required' });
     }
 
     try {
-        // 1. Insert into comparisons table
         const compResult = await pool.query(
             'INSERT INTO comparisons (user_id, name) VALUES ($1, $2) RETURNING id, name, created_at',
             [userId, name]
         );
         const comparisonId = compResult.rows[0].id;
 
-        // 2. Link developers to this comparison
         for (const username of usernames) {
-            // Get developer ID from database (must be fetched/cached already)
             const devResult = await pool.query('SELECT id FROM developers WHERE github_username = $1', [username]);
             if (devResult.rows.length > 0) {
                 const developerId = devResult.rows[0].id;
@@ -40,20 +37,46 @@ const saveComparison = async (req, res) => {
     }
 };
 
-// Get all saved comparisons for the logged-in user
+// Get all saved comparisons along with their associated developer usernames
 const getSavedComparisons = async (req, res) => {
     const userId = req.user.id;
 
     try {
-        const comparisons = await pool.query(
-            'SELECT * FROM comparisons WHERE user_id = $1 ORDER BY created_at DESC',
-            [userId]
-        );
+        const query = `
+            SELECT c.id, c.name, c.created_at, 
+                   array_agg(d.github_username) as usernames
+            FROM comparisons c
+            LEFT JOIN comparison_devs cd ON c.id = cd.comparison_id
+            LEFT JOIN developers d ON cd.developer_id = d.id
+            WHERE c.user_id = $1
+            GROUP BY c.id, c.name, c.created_at
+            ORDER BY c.created_at DESC;
+        `;
+        const comparisons = await pool.query(query, [userId]);
 
         res.json({ success: true, comparisons: comparisons.rows });
     } catch (err) {
         console.error('Fetch comparisons error:', err.message);
         res.status(500).json({ error: 'Failed to fetch comparisons' });
+    }
+};
+
+// Delete a saved comparison
+const deleteComparison = async (req, res) => {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    try {
+        const compCheck = await pool.query('SELECT * FROM comparisons WHERE id = $1 AND user_id = $2', [id, userId]);
+        if (compCheck.rows.length === 0) {
+            return res.status(404).json({ error: 'Comparison not found' });
+        }
+
+        await pool.query('DELETE FROM comparisons WHERE id = $1', [id]);
+        res.json({ message: 'Comparison deleted successfully' });
+    } catch (err) {
+        console.error('Delete comparison error:', err.message);
+        res.status(500).json({ error: 'Failed to delete comparison' });
     }
 };
 
@@ -107,4 +130,25 @@ const getUserPins = async (req, res) => {
     }
 };
 
-module.exports = { saveComparison, getSavedComparisons, pinRepository, getUserPins };
+// Delete a pinned repository
+const deletePin = async (req, res) => {
+    const userId = req.user.id;
+    const { repo_id } = req.params;
+
+    try {
+        await pool.query('DELETE FROM pins WHERE user_id = $1 AND repo_id = $2', [userId, repo_id]);
+        res.json({ message: 'Pin removed successfully' });
+    } catch (err) {
+        console.error('Delete pin error:', err.message);
+        res.status(500).json({ error: 'Failed to remove pin' });
+    }
+};
+
+module.exports = { 
+    saveComparison, 
+    getSavedComparisons, 
+    deleteComparison, 
+    pinRepository, 
+    getUserPins, 
+    deletePin 
+};

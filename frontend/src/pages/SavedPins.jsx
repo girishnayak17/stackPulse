@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Bookmark, GitCompare, Star } from 'lucide-react';
+import { Bookmark, GitCompare, Star, Trash2, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function SavedPins() {
@@ -8,31 +9,67 @@ export default function SavedPins() {
     const [comparisons, setComparisons] = useState([]);
     const [loading, setLoading] = useState(true);
     const { token } = useAuth();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (!token) return;
-
-        const fetchData = async () => {
-            try {
-                const [pinsRes, compsRes] = await Promise.all([
-                    axios.get('http://localhost:5000/api/curation/pins', {
-                        headers: { Authorization: `Bearer ${token}` }
-                    }),
-                    axios.get('http://localhost:5000/api/curation/comparisons', {
-                        headers: { Authorization: `Bearer ${token}` }
-                    })
-                ]);
-                setPins(pinsRes.data.pins || []);
-                setComparisons(compsRes.data.comparisons || []);
-            } catch (err) {
-                console.error('Failed to fetch saved data', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+        fetchSavedData();
     }, [token]);
+
+    const fetchSavedData = async () => {
+        try {
+            const [pinsRes, compsRes] = await Promise.all([
+                axios.get('http://localhost:5000/api/curation/pins', {
+                    headers: { Authorization: `Bearer ${token}` }
+                }),
+                axios.get('http://localhost:5000/api/curation/comparisons', {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            ]);
+            setPins(pinsRes.data.pins || []);
+            setComparisons(compsRes.data.comparisons || []);
+        } catch (err) {
+            console.error('Failed to fetch saved data', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteComparison = async (id, e) => {
+        e.stopPropagation(); // Prevent card click event
+        if (!window.confirm('Are you sure you want to delete this comparison?')) return;
+
+        try {
+            await axios.delete(`http://localhost:5000/api/curation/comparisons/${id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setComparisons(comparisons.filter(c => c.id !== id));
+        } catch (err) {
+            alert('Failed to delete comparison');
+        }
+    };
+
+    const handleDeletePin = async (repoId, e) => {
+        e.stopPropagation();
+        if (!window.confirm('Are you sure you want to remove this pin?')) return;
+
+        try {
+            await axios.delete(`http://localhost:5000/api/curation/pins/${repoId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPins(pins.filter(p => p.repo_id !== repoId));
+        } catch (err) {
+            alert('Failed to remove pin');
+        }
+    };
+
+    const handleOpenComparison = (usernames) => {
+        navigate('/compare', { state: { usernames } });
+    };
+
+    const handleOpenRepo = (username, repoName) => {
+        window.open(`https://github.com/${username}/${repoName}`, '_blank');
+    };
 
     if (!token) {
         return (
@@ -63,9 +100,34 @@ export default function SavedPins() {
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {comparisons.map((comp) => (
-                            <div key={comp.id} className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm space-y-2">
-                                <h3 className="font-bold text-gray-900 dark:text-white">{comp.name}</h3>
-                                <p className="text-xs text-gray-500">Created on: {new Date(comp.created_at).toLocaleDateString()}</p>
+                            <div 
+                                key={comp.id} 
+                                onClick={() => handleOpenComparison(comp.usernames)}
+                                className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm hover:border-purple-500 cursor-pointer transition flex flex-col justify-between space-y-4"
+                            >
+                                <div>
+                                    <div className="flex justify-between items-start">
+                                        <h3 className="font-bold text-gray-900 dark:text-white">{comp.name}</h3>
+                                        <button 
+                                            onClick={(e) => handleDeleteComparison(comp.id, e)}
+                                            className="text-gray-400 hover:text-red-600 p-1 transition"
+                                            title="Delete comparison"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    <div className="flex gap-2 mt-2">
+                                        {comp.usernames?.map((u, i) => (
+                                            <span key={i} className="text-xs px-2 py-1 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 rounded-md">
+                                                @{u}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="text-xs text-gray-400 flex justify-between items-center pt-2 border-t border-gray-100 dark:border-gray-800">
+                                    <span>Created: {new Date(comp.created_at).toLocaleDateString()}</span>
+                                    <span className="text-purple-600 dark:text-purple-400 font-medium">Click to open &rarr;</span>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -82,21 +144,37 @@ export default function SavedPins() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {pins.map((pin) => (
-                            <div key={pin.id} className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                            <div 
+                                key={pin.id} 
+                                onClick={() => handleOpenRepo(pin.github_username, pin.repo_name)}
+                                className="bg-white dark:bg-[#1f2028] border border-gray-200 dark:border-gray-800 rounded-xl p-5 shadow-sm hover:border-purple-500 cursor-pointer transition flex flex-col justify-between space-y-4"
+                            >
                                 <div>
                                     <div className="flex justify-between items-start">
                                         <span className="text-xs font-semibold px-2.5 py-1 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-300 rounded-md">
                                             @{pin.github_username}
                                         </span>
-                                        <span className="flex items-center gap-1 text-xs text-amber-500">
-                                            <Star className="w-4 h-4 fill-amber-500" /> {pin.stars}
-                                        </span>
+                                        <div className="flex items-center gap-3">
+                                            <span className="flex items-center gap-1 text-xs text-amber-500">
+                                                <Star className="w-4 h-4 fill-amber-500" /> {pin.stars}
+                                            </span>
+                                            <button 
+                                                onClick={(e) => handleDeletePin(pin.repo_id, e)}
+                                                className="text-gray-400 hover:text-red-600 p-1 transition"
+                                                title="Remove pin"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <h4 className="font-bold text-gray-900 dark:text-white mt-2">{pin.repo_name}</h4>
+                                    <h4 className="font-bold text-gray-900 dark:text-white mt-2 flex items-center gap-1.5 hover:text-purple-600 transition">
+                                        {pin.repo_name} <ExternalLink className="w-4 h-4" />
+                                    </h4>
                                     <p className="text-xs text-gray-500 mt-1 italic">Note: "{pin.note}"</p>
                                 </div>
-                                <div className="text-xs text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800">
-                                    Primary Language: <span className="font-medium text-gray-700 dark:text-gray-300">{pin.primary_language || 'N/A'}</span>
+                                <div className="text-xs text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                                    <span>Primary Language: <span className="font-medium text-gray-700 dark:text-gray-300">{pin.primary_language || 'N/A'}</span></span>
+                                    <span className="text-purple-600 dark:text-purple-400 font-medium">View on GitHub &rarr;</span>
                                 </div>
                             </div>
                         ))}

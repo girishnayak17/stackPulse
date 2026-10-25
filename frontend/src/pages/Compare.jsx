@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { GitCompare, Star, ExternalLink, AlertCircle, Save } from 'lucide-react';
+import { GitCompare, ExternalLink, AlertCircle, Save } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Compare() {
+    const location = useLocation();
     const [dev1, setDev1] = useState('');
     const [dev2, setDev2] = useState('');
     const [comparisonName, setComparisonName] = useState('');
@@ -14,31 +16,42 @@ export default function Compare() {
     const [successMessage, setSuccessMessage] = useState('');
     const { token } = useAuth();
 
-    const handleCompare = async (e) => {
-        e.preventDefault();
-        if (!dev1.trim() || !dev2.trim()) {
-            setError('Please enter two GitHub usernames to compare.');
-            return;
+    // Automatically trigger comparison if navigated from Saved & Pins with usernames
+    useEffect(() => {
+        if (location.state?.usernames && location.state.usernames.length >= 2) {
+            setDev1(location.state.usernames[0] || '');
+            setDev2(location.state.usernames[1] || '');
+            executeComparison(location.state.usernames[0], location.state.usernames[1]);
         }
+    }, [location.state]);
 
+    const executeComparison = async (username1, username2) => {
         setLoading(true);
         setError('');
-        setSuccessMessage('');
         setData1(null);
         setData2(null);
 
         try {
             const [res1, res2] = await Promise.all([
-                axios.get(`http://localhost:5000/api/github/profile/${dev1.trim()}`),
-                axios.get(`http://localhost:5000/api/github/profile/${dev2.trim()}`)
+                axios.get(`http://localhost:5000/api/github/profile/${username1.trim()}`),
+                axios.get(`http://localhost:5000/api/github/profile/${username2.trim()}`)
             ]);
             setData1(res1.data.developer);
             setData2(res2.data.developer);
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to fetch one or both developer profiles');
+            setError(err.response?.data?.error || 'Failed to fetch developer profiles');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleCompareSubmit = (e) => {
+        e.preventDefault();
+        if (!dev1.trim() || !dev2.trim()) {
+            setError('Please enter two GitHub usernames to compare.');
+            return;
+        }
+        executeComparison(dev1, dev2);
     };
 
     const handleSaveComparison = async () => {
@@ -73,7 +86,7 @@ export default function Compare() {
                     Benchmark metrics, followers, stars, and code ecosystems between two developers.
                 </p>
 
-                <form onSubmit={handleCompare} className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
+                <form onSubmit={handleCompareSubmit} className="max-w-2xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
                     <input 
                         type="text"
                         value={dev1}
